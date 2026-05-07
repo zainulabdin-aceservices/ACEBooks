@@ -1,15 +1,18 @@
-// =============================================
-// HISTORY SCREEN - Animated transaction cards
-// =============================================
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Image } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { 
+  View, Text, StyleSheet, FlatList, ActivityIndicator, Image, 
+  TouchableOpacity, Modal, Dimensions, ScrollView 
+} from 'react-native';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
+
+const { width, height } = Dimensions.get('window');
 
 export default function HistoryScreen() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const fetchTransactions = async () => {
     try {
@@ -34,58 +37,73 @@ export default function HistoryScreen() {
     );
   }
 
-  const renderItem = ({ item, index }) => (
-    <Animated.View entering={FadeInDown.duration(300).delay(index * 80)} style={styles.card}>
-      {/* Top Row: Date and Amount */}
-      <View style={styles.cardHeader}>
-        <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
-        <Text style={styles.amount}>Rs {parseFloat(item.amount).toLocaleString()}</Text>
-      </View>
+  const renderItem = ({ item, index }) => {
+    const hasImage = !!item.receipt_image;
+    
+    return (
+      <Animated.View entering={FadeInDown.duration(300).delay(index * 80)} style={styles.card}>
+        <View style={styles.cardContent}>
+          {/* Left Part: 70% (or 100% if no image) */}
+          <View style={[styles.detailsPart, !hasImage && { width: '100%' }]}>
+            {/* Row 1: Description */}
+            <View style={styles.detailRow}>
+              <Text style={styles.descriptionValue} numberOfLines={2}>
+                {item.description || 'No description'}
+              </Text>
+            </View>
 
-      {/* Description */}
-      <Text style={styles.description}>{item.description || 'No description'}</Text>
+            {/* Row 2: Amount */}
+            <View style={styles.detailRow}>
+              <Text style={styles.amountValue}>Rs {parseFloat(item.amount).toLocaleString()}</Text>
+            </View>
 
-      {/* Receipt thumbnail if available */}
-      {item.receipt_image && (
-        <Image
-          source={{ uri: item.receipt_image }}
-          style={styles.receiptThumb}
-          resizeMode="cover"
-        />
-      )}
+            {/* Row 3: User */}
+            <View style={styles.detailRow}>
+              <Text style={styles.userValue}>
+                {item.customer_name ? `👤 ${item.customer_name}` : `🛡️ ${item.user_name}`}
+              </Text>
+            </View>
 
-      {/* Footer: Type badge and customer */}
-      <View style={styles.cardFooter}>
-        <View style={[
-          styles.badge, 
-          item.type === 'hotel' ? styles.badgeHotel : 
-          item.type === 'receipt' ? styles.badgeReceipt : 
-          styles.badgeManual
-        ]}>
-          <Text style={[
-            styles.badgeText, 
-            item.type === 'hotel' ? styles.badgeHotelText : 
-            item.type === 'receipt' ? styles.badgeReceiptText : 
-            styles.badgeManualText
-          ]}>
-            {item.type.toUpperCase()}
-          </Text>
+            {/* Row 4: Date & Time */}
+            <View style={styles.detailRow}>
+              <Text style={styles.dateValue}>
+                {new Date(item.date).toLocaleDateString()} • {new Date(item.created_at || item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+
+            {/* Hotel items if present */}
+            {item.type === 'hotel' && item.hotel_items && (
+              <View style={styles.hotelSection}>
+                {(typeof item.hotel_items === 'string' ? JSON.parse(item.hotel_items) : item.hotel_items).map((hi, i) => (
+                  <Text key={i} style={styles.hotelItemText}>
+                    • {hi.name} × {hi.quantity}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Right Part: 30% (Image) */}
+          {hasImage && (
+            <TouchableOpacity 
+              style={styles.imagePart} 
+              activeOpacity={0.9}
+              onPress={() => setSelectedImage(item.receipt_image)}
+            >
+              <Image
+                source={{ uri: item.receipt_image }}
+                style={styles.receiptThumb}
+                resizeMode="cover"
+              />
+              <View style={styles.zoomIconOverlay}>
+                <Text style={styles.zoomIcon}>🔍</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
-        <Text style={styles.customer}>{item.customer_name || '👤 Self'}</Text>
-      </View>
-
-      {/* Hotel items breakdown if it's a hotel type */}
-      {item.type === 'hotel' && item.hotel_items && (
-        <View style={styles.hotelBreakdown}>
-          {(typeof item.hotel_items === 'string' ? JSON.parse(item.hotel_items) : item.hotel_items).map((hi, i) => (
-            <Text key={i} style={styles.hotelItem}>
-              {hi.name} × {hi.quantity} = Rs {hi.quantity * hi.rate}
-            </Text>
-          ))}
-        </View>
-      )}
-    </Animated.View>
-  );
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -93,6 +111,7 @@ export default function HistoryScreen() {
         data={transactions}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📋</Text>
@@ -100,6 +119,37 @@ export default function HistoryScreen() {
           </View>
         }
       />
+
+      {/* Full Image Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalCloseArea} 
+            activeOpacity={1} 
+            onPress={() => setSelectedImage(null)} 
+          />
+          <Animated.View entering={ZoomIn} style={styles.modalContent}>
+            {selectedImage && (
+              <Image 
+                source={{ uri: selectedImage }} 
+                style={styles.fullImage} 
+                resizeMode="contain" 
+              />
+            )}
+            <TouchableOpacity 
+              style={styles.closeBtn} 
+              onPress={() => setSelectedImage(null)}
+            >
+              <Text style={styles.closeBtnText}>Close</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -108,7 +158,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+    padding: 12,
   },
   center: {
     flex: 1,
@@ -117,99 +167,134 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 18,
+    marginBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: 'hidden',
   },
-  cardHeader: {
+  cardContent: {
     flexDirection: 'row',
+    minHeight: 140,
+  },
+  detailsPart: {
+    width: '70%',
+    padding: 16,
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
-  date: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  amount: {
-    fontWeight: 'bold',
-    fontSize: 20,
-    color: colors.primary,
-  },
-  description: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 12,
-    fontWeight: '500',
+  imagePart: {
+    width: '30%',
+    backgroundColor: colors.inputBg,
+    position: 'relative',
   },
   receiptThumb: {
     width: '100%',
-    height: 120,
-    borderRadius: 10,
-    marginBottom: 12,
-    backgroundColor: colors.inputBg,
+    height: '100%',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  zoomIconOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+  zoomIcon: {
+    fontSize: 14,
+    color: '#FFF',
   },
-  badgeManual: {
-    backgroundColor: colors.primary + '18',
+  detailRow: {
+    marginBottom: 8,
   },
-  badgeHotel: {
-    backgroundColor: colors.info + '18',
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
-  badgeReceipt: {
-    backgroundColor: colors.success + '18',
+  descriptionValue: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  badgeManualText: {
+  amountValue: {
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.primary,
   },
-  badgeHotelText: {
-    color: colors.info,
-  },
-  badgeReceiptText: {
-    color: colors.success,
-  },
-  customer: {
+  userValue: {
+    fontSize: 13,
     color: colors.textSecondary,
-    fontSize: 14,
+    fontWeight: '500',
   },
-  hotelBreakdown: {
-    marginTop: 12,
-    paddingTop: 10,
+  dateValue: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  hotelSection: {
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
   },
-  hotelItem: {
-    fontSize: 13,
+  hotelItemText: {
+    fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: 3,
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 100,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+    fontSize: 50,
+    marginBottom: 16,
   },
   emptyText: {
     color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseArea: {
+    position: 'absolute',
+    width: width,
+    height: height,
+  },
+  modalContent: {
+    width: width * 0.95,
+    height: height * 0.8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  closeBtn: {
+    marginTop: 20,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  closeBtnText: {
+    color: '#000',
+    fontWeight: 'bold',
     fontSize: 16,
   },
 });

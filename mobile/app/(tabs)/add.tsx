@@ -12,11 +12,11 @@ import {
   Alert, ScrollView, Image, ActivityIndicator,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../store/AuthContext';
+import ReceiptScanner from '../../components/ReceiptScanner';
 
 export default function AddScreen() {
   const router = useRouter();
@@ -36,7 +36,6 @@ export default function AddScreen() {
   // Receipt mode state
   const [receiptImage, setReceiptImage] = useState(null); // base64 string
   const [receiptUri, setReceiptUri] = useState(null);      // for preview
-  const [ocrLoading, setOcrLoading] = useState(false);
 
   // ---- Fetch customers and hotel config on load ----
   useEffect(() => {
@@ -92,64 +91,15 @@ export default function AddScreen() {
     setHotelTotal(total);
   };
 
-  // ---- Receipt / Camera ----
-  const pickImage = async (fromCamera) => {
-    try {
-      // Ask for permission
-      if (fromCamera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          Alert.alert('Permission Denied', 'Camera access is required.');
-          return;
-        }
-      }
-
-      const result = fromCamera
-        ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 })
-        : await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.6 });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setReceiptUri(asset.uri);
-        setReceiptImage(`data:image/jpeg;base64,${asset.base64}`);
-
-        // Run OCR on the image
-        runOCR(asset.base64);
-      }
-    } catch (e) {
-      console.log('Image picker error', e);
-    }
+  // ---- Callbacks for ReceiptScanner ----
+  const handleReceiptScan = (scannedAmount, scannedDescription) => {
+    if (scannedAmount) setAmount(scannedAmount);
+    if (scannedDescription) setDescription(scannedDescription);
   };
 
-  const runOCR = async (base64Data) => {
-    setOcrLoading(true);
-    try {
-      // Tesseract.js runs in the browser/node environment.
-      // In React Native, we use a simpler approach:
-      // Send the base64 to the backend for processing.
-      // Or for a pure frontend approach, we'll parse basic text.
-      // For now we'll use a simple regex-based approach after
-      // sending to a lightweight endpoint.
-      
-      // Simple frontend fallback: try to extract numbers that look like totals
-      // In a production app you'd use a proper OCR service.
-      // We'll create a backend endpoint for this.
-      const res = await api.post('/transactions/parse-receipt', { image: base64Data });
-      
-      if (res.data.storeName) {
-        setDescription(res.data.storeName);
-      }
-      if (res.data.totalAmount) {
-        setAmount(res.data.totalAmount.toString());
-      }
-
-      Alert.alert('Receipt Parsed', `Store: ${res.data.storeName || 'Unknown'}\nTotal: Rs ${res.data.totalAmount || 'Not found'}`);
-    } catch (e) {
-      console.log('OCR error:', e);
-      Alert.alert('OCR Info', 'Could not auto-parse receipt. Please enter details manually.');
-    } finally {
-      setOcrLoading(false);
-    }
+  const handleImageCaptured = (base64, uri) => {
+    setReceiptImage(base64);
+    setReceiptUri(uri);
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -271,6 +221,16 @@ export default function AddScreen() {
       {/* ---- MANUAL MODE ---- */}
       {mode === 'manual' && (
         <Animated.View style={styles.card} entering={FadeInDown.duration(400).delay(200)}>
+          <Text style={styles.cardTitle}>✏️ Manual Entry</Text>
+          
+          <ReceiptScanner 
+            onScan={handleReceiptScan}
+            onImageCaptured={handleImageCaptured}
+            initialUri={receiptUri}
+          />
+
+          <View style={styles.divider} />
+
           <Text style={styles.label}>Amount (Rs)</Text>
           <TextInput
             style={styles.input}
@@ -332,28 +292,13 @@ export default function AddScreen() {
         <Animated.View style={styles.card} entering={FadeInDown.duration(400).delay(200)}>
           <Text style={styles.cardTitle}>📷 Scan Receipt</Text>
 
-          <View style={styles.cameraButtons}>
-            <TouchableOpacity style={styles.cameraBtn} onPress={() => pickImage(true)}>
-              <Text style={styles.cameraBtnIcon}>📸</Text>
-              <Text style={styles.cameraBtnText}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cameraBtn} onPress={() => pickImage(false)}>
-              <Text style={styles.cameraBtnIcon}>🖼️</Text>
-              <Text style={styles.cameraBtnText}>Gallery</Text>
-            </TouchableOpacity>
-          </View>
+          <ReceiptScanner 
+            onScan={handleReceiptScan}
+            onImageCaptured={handleImageCaptured}
+            initialUri={receiptUri}
+          />
 
-          {/* Receipt Preview */}
-          {receiptUri && (
-            <Image source={{ uri: receiptUri }} style={styles.receiptPreview} resizeMode="contain" />
-          )}
-
-          {ocrLoading && (
-            <View style={styles.ocrLoading}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={styles.ocrText}>Analyzing receipt...</Text>
-            </View>
-          )}
+          <View style={styles.divider} />
 
           {/* Editable fields after OCR */}
           <Text style={styles.label}>Store Name / Description</Text>
@@ -600,6 +545,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    marginVertical: 16,
+    opacity: 0.5,
   },
   receiptPreview: {
     width: '100%',

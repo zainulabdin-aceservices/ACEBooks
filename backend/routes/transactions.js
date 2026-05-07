@@ -9,15 +9,16 @@ router.get('/', verifyToken, async (req, res) => {
 
   try {
     let queryStr = `
-      SELECT t.*, u.name as user_name, c.name as customer_name 
+      SELECT t.id, t.created_by, t.customer_id, t.amount, t.description, t.date, t.receipt_image, t.type, t.hotel_items, t.created_at,
+             u.name as user_name, c.name as customer_name 
       FROM transactions t
-      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN users u ON t.created_by = u.id
       LEFT JOIN customers c ON t.customer_id = c.id
     `;
     const params = [];
 
     if (role !== 'Admin') {
-      queryStr += ` WHERE t.user_id = $1`;
+      queryStr += ` WHERE t.created_by = $1`;
       params.push(id);
     }
 
@@ -45,7 +46,7 @@ router.post('/', verifyToken, async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO transactions 
-        (user_id, customer_id, amount, description, date, receipt_image, type, hotel_items) 
+        (created_by, customer_id, amount, description, date, receipt_image, type, hotel_items) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
       [userId, customerId, amount, description || '', date, receiptImage || null, type, hotelItemsJson]

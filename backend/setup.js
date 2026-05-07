@@ -29,7 +29,7 @@ async function setupDatabase() {
   const transactionsTable = `
     CREATE TABLE IF NOT EXISTS transactions (
       id SERIAL PRIMARY KEY,
-      user_id INTEGER REFERENCES users(id),
+      created_by INTEGER REFERENCES users(id),
       customer_id INTEGER REFERENCES customers(id),
       amount NUMERIC NOT NULL,
       description TEXT,
