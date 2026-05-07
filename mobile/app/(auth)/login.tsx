@@ -38,7 +38,7 @@ export default function LoginScreen() {
     try {
       await login(username, password);
     } catch (error) {
-      Alert.alert('Login Failed', error.response?.data?.error || 'Invalid credentials');
+      Alert.alert('Login Failed', error.response?.data?.error || error.message || 'Connection failed');
     } finally {
       setLoading(false);
       buttonScale.value = withSpring(1);

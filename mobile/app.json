@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "ACEBooks",
-    "slug": "acebooks",
+    "slug": "ledgers-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo-foreground.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,7 +18,8 @@
         "monochromeImage": "./assets/images/logo-mono.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.aceservicesorganization.ledgersapp"
     },
     "web": {
       "output": "static",
@@ -29,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo-foreground.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -46,9 +47,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "218199c4-2f23-4015-8a03-4430a830df92"
+        "projectId": "1cf713bc-b3be-474a-bf91-97eb8799f942"
       }
     },
-    "owner": "zain.ace"
+    "owner": "ace-services-organization"
   }
 }
