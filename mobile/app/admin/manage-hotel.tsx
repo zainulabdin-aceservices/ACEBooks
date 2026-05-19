@@ -25,6 +25,7 @@ export default function ManageHotelScreen() {
   // Form fields for new dish
   const [dishName, setDishName] = useState('');
   const [dishRate, setDishRate] = useState('');
+  const [editingDishIndex, setEditingDishIndex] = useState(null);
 
   useEffect(() => {
     fetchConfig();
@@ -51,26 +52,55 @@ export default function ManageHotelScreen() {
     }
   };
 
-  // Add a new dish
-  const handleAdd = () => {
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingDishIndex(null);
+    setDishName('');
+    setDishRate('');
+  };
+
+  // Add or edit a dish
+  const handleSaveDish = () => {
     if (!dishName || !dishRate) {
       Alert.alert('Error', 'Both dish name and rate are required.');
       return;
     }
 
-    const newDish = { name: dishName, rate: parseFloat(dishRate) };
-    const updatedDishes = [...dishes, newDish];
-    
-    // Auto-add to selected day if adding from a specific day view
-    let updatedSchedule = { ...schedule };
-    if (!updatedSchedule[selectedDay]) updatedSchedule[selectedDay] = [];
-    updatedSchedule[selectedDay].push(dishName);
+    const newRate = parseFloat(dishRate);
 
-    saveConfig(updatedDishes, updatedSchedule);
-    Alert.alert('✅ Added', `"${dishName}" added to the menu!`);
-    setShowModal(false);
-    setDishName('');
-    setDishRate('');
+    if (editingDishIndex !== null) {
+      // Edit existing dish
+      const oldDishName = dishes[editingDishIndex].name;
+      const updatedDishes = [...dishes];
+      updatedDishes[editingDishIndex] = { name: dishName, rate: newRate };
+
+      // Update schedule if name changed
+      let updatedSchedule = { ...schedule };
+      if (oldDishName !== dishName) {
+        Object.keys(updatedSchedule).forEach(day => {
+          updatedSchedule[day] = updatedSchedule[day].map(name => 
+            name === oldDishName ? dishName : name
+          );
+        });
+      }
+
+      saveConfig(updatedDishes, updatedSchedule);
+      Alert.alert('✅ Updated', `"${dishName}" updated successfully!`);
+    } else {
+      // Add new dish
+      const newDish = { name: dishName, rate: newRate };
+      const updatedDishes = [...dishes, newDish];
+      
+      // Auto-add to selected day if adding from a specific day view
+      let updatedSchedule = { ...schedule };
+      if (!updatedSchedule[selectedDay]) updatedSchedule[selectedDay] = [];
+      updatedSchedule[selectedDay].push(dishName);
+
+      saveConfig(updatedDishes, updatedSchedule);
+      Alert.alert('✅ Added', `"${dishName}" added to the menu!`);
+    }
+
+    closeModal();
   };
 
   // Remove a dish entirely
@@ -126,9 +156,19 @@ export default function ManageHotelScreen() {
             <Text style={styles.dishRate}>Rs {item.rate} / plate</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(index)}>
-          <FontAwesome name="trash-o" size={18} color={colors.error} />
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => {
+            setEditingDishIndex(index);
+            setDishName(item.name);
+            setDishRate(item.rate.toString());
+            setShowModal(true);
+          }}>
+            <FontAwesome name="pencil" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(index)}>
+            <FontAwesome name="trash-o" size={18} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     );
   };
@@ -168,15 +208,20 @@ export default function ManageHotelScreen() {
       />
 
       {/* Floating Add Button */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.fab} onPress={() => { setEditingDishIndex(null); setShowModal(true); }} activeOpacity={0.8}>
         <FontAwesome name="plus" size={22} color="#FFF" />
       </TouchableOpacity>
 
       {/* Add Dish Modal */}
-      <Modal visible={showModal} animationType="slide" transparent>
+      <Modal visible={showModal} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} 
+            activeOpacity={1} 
+            onPress={closeModal} 
+          />
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add New Dish</Text>
+            <Text style={styles.modalTitle}>{editingDishIndex !== null ? 'Edit Dish' : 'Add New Dish'}</Text>
 
             <Text style={styles.label}>Dish Name</Text>
             <TextInput style={styles.input} value={dishName} onChangeText={setDishName} placeholder="e.g. Biryani" placeholderTextColor={colors.textLight} />
@@ -185,11 +230,11 @@ export default function ManageHotelScreen() {
             <TextInput style={styles.input} value={dishRate} onChangeText={setDishRate} placeholder="e.g. 250" keyboardType="numeric" placeholderTextColor={colors.textLight} />
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowModal(false); setDishName(''); setDishRate(''); }}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={closeModal}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.createBtn} onPress={handleAdd}>
-                <Text style={styles.createBtnText}>Add Dish</Text>
+              <TouchableOpacity style={styles.createBtn} onPress={handleSaveDish}>
+                <Text style={styles.createBtnText}>{editingDishIndex !== null ? 'Save Changes' : 'Add Dish'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -241,6 +286,11 @@ const styles = StyleSheet.create({
   dishInfo: { flex: 1 },
   dishName: { fontSize: 16, fontWeight: '600', color: colors.text },
   dishRate: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  actionButtons: { flexDirection: 'row', gap: 8 },
+  editBtn: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primary + '10',
+    justifyContent: 'center', alignItems: 'center',
+  },
   removeBtn: {
     width: 40, height: 40, borderRadius: 12, backgroundColor: colors.error + '10',
     justifyContent: 'center', alignItems: 'center',

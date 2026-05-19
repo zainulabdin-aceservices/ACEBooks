@@ -1,11 +1,12 @@
 // =============================================
 // HOME DASHBOARD - Animated cards with gradient
 // =============================================
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { AuthContext } from '../../store/AuthContext';
+import { useFocusEffect } from 'expo-router';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
 
@@ -37,9 +38,11 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   return (
     <ScrollView

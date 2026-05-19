@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, Text, StyleSheet, FlatList, ActivityIndicator, Image, 
-  TouchableOpacity, Modal, Dimensions, ScrollView 
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, ActivityIndicator, Image,
+  TouchableOpacity, Modal, Dimensions, ScrollView
 } from 'react-native';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
+import { useFocusEffect } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,9 +26,11 @@ export default function HistoryScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTransactions();
+    }, [])
+  );
 
   if (loading) {
     return (
@@ -39,7 +42,7 @@ export default function HistoryScreen() {
 
   const renderItem = ({ item, index }) => {
     const hasImage = !!item.receipt_image;
-    
+
     return (
       <Animated.View entering={FadeInDown.duration(300).delay(index * 80)} style={styles.card}>
         <View style={styles.cardContent}>
@@ -60,7 +63,8 @@ export default function HistoryScreen() {
             {/* Row 3: User */}
             <View style={styles.detailRow}>
               <Text style={styles.userValue}>
-                {item.customer_name ? `👤 ${item.customer_name}` : `🛡️ ${item.user_name}`}
+                {item?.user_name.toUpperCase()}
+                {/* {item.customer_name ? `👤 ${item.customer_name}` : `🛡️ ${item.user_name}`} */}
               </Text>
             </View>
 
@@ -74,19 +78,19 @@ export default function HistoryScreen() {
             {/* Hotel items if present */}
             {item.type === 'hotel' && item.hotel_items && (
               <View style={styles.hotelSection}>
-                {(typeof item.hotel_items === 'string' ? JSON.parse(item.hotel_items) : item.hotel_items).map((hi, i) => (
-                  <Text key={i} style={styles.hotelItemText}>
-                    • {hi.name} × {hi.quantity}
-                  </Text>
-                ))}
+                <Text style={styles.hotelItemText} numberOfLines={2}>
+                  {(typeof item.hotel_items === 'string' ? JSON.parse(item.hotel_items) : item.hotel_items)
+                    .map((hi: any) => `${hi.name} x ${hi.quantity}`)
+                    .join(' • ')}
+                </Text>
               </View>
             )}
           </View>
 
           {/* Right Part: 30% (Image) */}
           {hasImage && (
-            <TouchableOpacity 
-              style={styles.imagePart} 
+            <TouchableOpacity
+              style={styles.imagePart}
               activeOpacity={0.9}
               onPress={() => setSelectedImage(item.receipt_image)}
             >
@@ -128,21 +132,21 @@ export default function HistoryScreen() {
         onRequestClose={() => setSelectedImage(null)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalCloseArea} 
-            activeOpacity={1} 
-            onPress={() => setSelectedImage(null)} 
+          <TouchableOpacity
+            style={styles.modalCloseArea}
+            activeOpacity={1}
+            onPress={() => setSelectedImage(null)}
           />
           <Animated.View entering={ZoomIn} style={styles.modalContent}>
             {selectedImage && (
-              <Image 
-                source={{ uri: selectedImage }} 
-                style={styles.fullImage} 
-                resizeMode="contain" 
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.fullImage}
+                resizeMode="contain"
               />
             )}
-            <TouchableOpacity 
-              style={styles.closeBtn} 
+            <TouchableOpacity
+              style={styles.closeBtn}
               onPress={() => setSelectedImage(null)}
             >
               <Text style={styles.closeBtnText}>Close</Text>
@@ -178,12 +182,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flexDirection: 'row',
-    minHeight: 140,
+    minHeight: 100,
   },
   detailsPart: {
     width: '70%',
-    padding: 16,
-    justifyContent: 'space-between',
+    padding: 12,
+    justifyContent: 'center',
   },
   imagePart: {
     width: '30%',
@@ -191,6 +195,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   receiptThumb: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
     height: '100%',
   },
@@ -210,7 +219,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   detailRow: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   label: {
     fontSize: 11,
@@ -221,32 +230,32 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   descriptionValue: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.text,
     fontWeight: '600',
   },
   amountValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: colors.primary,
   },
   userValue: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '800',
   },
   dateValue: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   hotelSection: {
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
   },
   hotelItemText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   emptyContainer: {

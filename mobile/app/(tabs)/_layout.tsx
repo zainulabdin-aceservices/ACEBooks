@@ -14,23 +14,18 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textLight,
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 0,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
+          height: 70,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.06,
           shadowRadius: 12,
           elevation: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
         },
         headerStyle: {
           backgroundColor: colors.card,
@@ -49,7 +44,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : null}>
+            <View style={[styles.iconWrap, focused && styles.activeIconWrap]}>
               <FontAwesome name="home" size={22} color={color} />
             </View>
           ),
@@ -60,8 +55,8 @@ export default function TabLayout() {
         options={{
           title: 'Add Expense',
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.addButton, focused && styles.addButtonActive]}>
-              <FontAwesome name="plus" size={20} color={focused ? '#FFF' : color} />
+            <View style={[styles.iconWrap, focused && styles.activeIconWrap]}>
+              <FontAwesome name="plus" size={22} color={color} />
             </View>
           ),
         }}
@@ -71,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : null}>
+            <View style={[styles.iconWrap, focused && styles.activeIconWrap]}>
               <FontAwesome name="list-alt" size={22} color={color} />
             </View>
           ),
@@ -82,7 +77,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, focused }) => (
-            <View style={focused ? styles.activeIconWrap : null}>
+            <View style={[styles.iconWrap, focused && styles.activeIconWrap]}>
               <FontAwesome name="cog" size={22} color={color} />
             </View>
           ),
@@ -93,26 +88,16 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  activeIconWrap: {
-    backgroundColor: colors.primary + '12',
-    borderRadius: 10,
-    padding: 4,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.inputBg,
+  iconWrap: {
+    width: 64,
+    height: 40,
     justifyContent: 'center',
+    position: 'relative',
+    bottom: '-50%',
     alignItems: 'center',
-    marginBottom: 4,
+    borderRadius: 20,
   },
-  addButtonActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
+  activeIconWrap: {
+    backgroundColor: colors.primary + '15',
   },
 });

@@ -50,6 +50,12 @@
         "projectId": "1cf713bc-b3be-474a-bf91-97eb8799f942"
       }
     },
-    "owner": "ace-services-organization"
+    "owner": "ace-services-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1cf713bc-b3be-474a-bf91-97eb8799f942"
+    }
   }
 }

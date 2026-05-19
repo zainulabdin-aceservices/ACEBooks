@@ -6,15 +6,15 @@
 //   2. Hotel Entry   - pick dishes from menu
 //   3. Receipt Scan  - camera/gallery + OCR
 // =============================================
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  Alert, ScrollView, Image, ActivityIndicator,
+  Alert, ScrollView, Image, ActivityIndicator, KeyboardAvoidingView, Platform
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { colors } from '../../theme/colors';
 import api from '../../services/api';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../store/AuthContext';
 import ReceiptScanner from '../../components/ReceiptScanner';
 
@@ -38,12 +38,14 @@ export default function AddScreen() {
   const [receiptUri, setReceiptUri] = useState(null);      // for preview
 
   // ---- Fetch customers and hotel config on load ----
-  useEffect(() => {
-    if (user?.role?.toLowerCase() === 'admin') {
-      fetchCustomers();
-    }
-    fetchHotelConfig();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.role?.toLowerCase() === 'admin') {
+        fetchCustomers();
+      }
+      fetchHotelConfig();
+    }, [user])
+  );
 
   const fetchCustomers = async () => {
     try {
@@ -82,12 +84,13 @@ export default function AddScreen() {
     const updated = [...dishes];
     // Use 0.5 increments as requested
     const step = 0.5;
-    const newQty = Math.max(0, updated[index].quantity + (delta > 0 ? step : -step));
+    const currentQty = parseFloat(updated[index].quantity) || 0;
+    const newQty = Math.max(0, currentQty + (delta > 0 ? step : -step));
     updated[index].quantity = parseFloat(newQty.toFixed(1)); // Handle float precision
     setDishes(updated);
 
     // Recalculate total
-    const total = updated.reduce((sum, d) => sum + d.quantity * d.rate, 0);
+    const total = updated.reduce((sum, d) => sum + (parseFloat(d.quantity) || 0) * d.rate, 0);
     setHotelTotal(total);
   };
 
@@ -115,9 +118,9 @@ export default function AddScreen() {
     if (mode === 'hotel') {
       finalAmount = hotelTotal;
       finalDescription = 'Hotel Order';
-      hotelItems = dishes.filter(d => d.quantity > 0).map(d => ({
+      hotelItems = dishes.filter(d => (parseFloat(d.quantity) || 0) > 0).map(d => ({
         name: d.name,
-        quantity: d.quantity,
+        quantity: parseFloat(d.quantity) || 0,
         rate: d.rate,
       }));
       if (hotelItems.length === 0) {
@@ -175,7 +178,16 @@ export default function AddScreen() {
   // RENDER
   // =============================================
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: colors.background }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 70}
+    >
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Mode Selector Tabs */}
       <Animated.View entering={FadeInDown.duration(400)} style={styles.tabContainer}>
         {['manual', 'hotel', 'receipt'].map((m) => (
@@ -270,7 +282,18 @@ export default function AddScreen() {
                   <TouchableOpacity style={styles.qtyBtn} onPress={() => updateDishQty(index, -1)}>
                     <Text style={styles.qtyBtnText}>−</Text>
                   </TouchableOpacity>
-                  <Text style={styles.qtyValue}>{dish.quantity}</Text>
+                  <TextInput
+                    style={styles.qtyInput}
+                    keyboardType="numeric"
+                    value={dish.quantity?.toString() || ''}
+                    onChangeText={(val) => {
+                      const updated = [...dishes];
+                      updated[index].quantity = val;
+                      setDishes(updated);
+                      const total = updated.reduce((sum, d) => sum + (parseFloat(d.quantity) || 0) * d.rate, 0);
+                      setHotelTotal(total);
+                    }}
+                  />
                   <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnPlus]} onPress={() => updateDishQty(index, 1)}>
                     <Text style={[styles.qtyBtnText, styles.qtyBtnPlusText]}>+</Text>
                   </TouchableOpacity>
@@ -339,7 +362,8 @@ export default function AddScreen() {
       </Animated.View>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -494,12 +518,16 @@ const styles = StyleSheet.create({
   qtyBtnPlusText: {
     color: '#FFF',
   },
-  qtyValue: {
+  qtyInput: {
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    minWidth: 24,
+    minWidth: 44,
     textAlign: 'center',
+    padding: 0,
+    backgroundColor: colors.inputBg,
+    borderRadius: 8,
+    height: 36,
   },
   totalRow: {
     flexDirection: 'row',
